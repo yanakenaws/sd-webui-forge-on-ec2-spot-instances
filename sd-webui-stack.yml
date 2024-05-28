@@ -3,8 +3,8 @@ Description: A CloudFormation template to deploy the Stable Diffusion Web UI For
 Parameters:
  Ec2ImageId:
    Type: String
-   Default: ami-08d56feea76b6f38b
-   Description: Enter appropriate AMI ID in your region. Tested with "Deep Learning AMI GPU PyTorch 1.13.1 (Ubuntu 20.04) 20230510" in us-east-1.
+   Default: ami-0a6e937be33b64a93
+   Description: Enter appropriate AMI ID in your region. Tested with "Deep Learning OSS Nvidia Driver AMI GPU TensorFlow 2.16 (Ubuntu 20.04) 20240521" in us-east-1.
  Ec2InstanceType:
    Type: String
    Default: g4dn.xlarge
@@ -168,7 +168,7 @@ Resources:
            MIME-Version: 1.0
            Content-Transfer-Encoding: 7bit
            Content-Disposition: attachment; filename="userdata.txt"
-           
+
            #!/bin/bash
 
            # Disable unattended upgrades
@@ -189,6 +189,14 @@ Resources:
            # setup script uses existing folder if it exists. Feel free to change version here.
            sudo -u ubuntu git clone https://github.com/lllyasviel/stable-diffusion-webui-forge.git
 
+           # Download SDXL files
+           cd /home/ubuntu/stable-diffusion-webui-forge/models/Stable-diffusion
+           sudo -u ubuntu wget https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/resolve/main/sd_xl_base_1.0.safetensors &
+           sudo -u ubuntu wget https://huggingface.co/stabilityai/stable-diffusion-xl-refiner-1.0/resolve/main/sd_xl_refiner_1.0.safetensors &
+           wait
+           cd /home/ubuntu/stable-diffusion-webui-forge/models/VAE
+           sudo -u ubuntu wget https://huggingface.co/stabilityai/sdxl-vae/resolve/main/sdxl_vae.safetensors
+
            # Create systemd service
            cat > /etc/systemd/system/sd-webui.service <<EOF
            [Unit]
@@ -197,10 +205,13 @@ Resources:
 
            [Service]
            User=ubuntu
-           WorkingDirectory=/home/ubuntu
-           ExecStart=/bin/bash -c 'stable-diffusion-webui-forge/webui.sh --xformers --listen --enable-insecure-extension-access --gradio-auth ${GradioUsername}:${GradioPassword} --gradio-queue &> sd-webui-log.txt'
+           WorkingDirectory=/home/ubuntu/stable-diffusion-webui-forge
+           ExecStart=/bin/bash -c '/home/ubuntu/stable-diffusion-webui-forge/webui.sh --xformers --listen --enable-insecure-extension-access --gradio-auth ${GradioUsername}:${GradioPassword} --gradio-queue'
            Restart=always
            RestartSec=3
+           StandardOutput=sd-webui-log.txt
+           StandardError=sd-webui-log.txt
+           SyslogIdentifier=sd-webui
 
            [Install]
            WantedBy=multi-user.target
