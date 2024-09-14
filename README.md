@@ -11,11 +11,10 @@ This CloudFormation template launches a GPU instance using EC2 [Spot Instances](
   - `Ec2ImageId`: The default AMI ID is for the N. Virginia region. If you need to use a different region, you'll need to find and provide the appropriate AMI ID for that region.
   - `Ec2InstanceType`: Select the desired instance type with GPU support.
   - `SubnetAZ`: Choose the Availability Zone for the subnet.
-  - `GradioUsername` and `GradioPassword`: Set the credentials for Stable Diffusion Web UI authentication.
   - `AccessCidrIp`: CIDR IP range allowed to access the instance.
 5. Review and create the stack.
 6. After the stack creation is complete, note the `SSMCommandFor[Your OS]` output. Run this command on your local machine to establish a port forwarding session.
-7. In your browser, access the Stable Diffusion Web UI at `WebUIUrl` using the `GradioUsername` and `GradioPassword` set during stack creation.
+7. In your browser, access the Stable Diffusion Web UI at `WebUIUrl`.
 
 
 ## Outputs
@@ -30,9 +29,14 @@ After the stack creation is complete, the following outputs will be available:
 ## Usage Notes
 
 - The Stable Diffusion Web UI will be accessible at the provided `WebUIUrl` output using AWS Systems Manager port forwarding.
+- This stack uses the FLUX.1 model instead of SDXL. The following model files are automatically downloaded:
+  - FLUX.1 model: flux1-dev-fp8.safetensors (stored in /home/ubuntu/stable-diffusion-webui-forge/models/Stable-diffusion/)
+  - VAE: ae.safetensors (stored in /home/ubuntu/stable-diffusion-webui-forge/models/VAE/)
+  - CLIP model: clip_l.safetensors (stored in /home/ubuntu/stable-diffusion-webui-forge/models/text_encoder/)
+  - Text encoder: t5xxl_fp8_e4m3fn.safetensors (stored in /home/ubuntu/stable-diffusion-webui-forge/models/text_encoder/)
 - Follow [these instructions](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html) to set up your environment for using the `start-session` command with AWS Systems Manager.
 - A new VPC, subnet, security group (allowing all outbound traffic and no inbound traffic), and other necessary resources are created for the deployment.
-- The instance will have a 300GB gp3 volume attached for storage.
+- The instance will have a 200GB gp3 volume attached for storage.
 - The AWS Systems Manager Managed Instance Core policy is attached to the instance for easy management.
 - Ensure you have sufficient IAM permissions and service quotas for the required resources.
 - After the CloudFormation stack reaches the CREATE_COMPLETE state, wait approximately 10 minutes before accessing the Web UI. This time is needed for software installation and data download.

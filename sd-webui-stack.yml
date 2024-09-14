@@ -3,15 +3,15 @@ Description: A CloudFormation template to deploy the Stable Diffusion Web UI For
 Parameters:
  Ec2ImageId:
    Type: String
-   Default: ami-0a6e937be33b64a93
-   Description: Enter appropriate AMI ID in your region. Tested with "Deep Learning OSS Nvidia Driver AMI GPU TensorFlow 2.16 (Ubuntu 20.04) 20240521" in us-east-1.
+   Default: ami-082690718187441d3
+   Description: Enter appropriate AMI ID in your region. Tested with "Deep Learning OSS Nvidia Driver AMI GPU TensorFlow 2.16 (Ubuntu 20.04) 20240816" in us-east-1.
  Ec2InstanceType:
    Type: String
-   Default: g4dn.xlarge
+   Default: g4dn.2xlarge
    AllowedValues:
-     - g4dn.xlarge
      - g4dn.2xlarge
      - g5.xlarge
+     - g6.xlarge
  SubnetAZ:
    Type: String
    Description: The Availability Zone in which to create the subnet
@@ -22,14 +22,7 @@ Parameters:
      - us-east-1d
      - us-east-1f
    Default: us-east-1a
- GradioUsername:
-   Type: String
-   Default: admin
-   Description: Username for SD Web UI authentication
- GradioPassword:
-   Type: String
-   Default: password
-   Description: Password for SD Web UI authentication
+
 Resources:
  MyVPC:
    Type: AWS::EC2::VPC
@@ -143,7 +136,7 @@ Resources:
        BlockDeviceMappings:
          - DeviceName: /dev/sda1
            Ebs:
-             VolumeSize: 300
+             VolumeSize: 200
              VolumeType: gp3
              DeleteOnTermination: true
        IamInstanceProfile:
@@ -189,13 +182,17 @@ Resources:
            # setup script uses existing folder if it exists. Feel free to change version here.
            sudo -u ubuntu git clone https://github.com/lllyasviel/stable-diffusion-webui-forge.git
 
-           # Download SDXL files
+           # Download FLUX.1 model files
            cd /home/ubuntu/stable-diffusion-webui-forge/models/Stable-diffusion
-           sudo -u ubuntu wget https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/resolve/main/sd_xl_base_1.0.safetensors &
-           sudo -u ubuntu wget https://huggingface.co/stabilityai/stable-diffusion-xl-refiner-1.0/resolve/main/sd_xl_refiner_1.0.safetensors &
-           wait
+           sudo -u ubuntu wget https://huggingface.co/silveroxides/flux1-nf4-weights/resolve/main/flux1-schnell-bnb-nf4.safetensors
+           
            cd /home/ubuntu/stable-diffusion-webui-forge/models/VAE
-           sudo -u ubuntu wget https://huggingface.co/stabilityai/sdxl-vae/resolve/main/sdxl_vae.safetensors
+           sudo -u ubuntu wget https://huggingface.co/black-forest-labs/FLUX.1-schnell/resolve/main/ae.safetensors
+           
+           sudo -u ubuntu mkdir -p /home/ubuntu/stable-diffusion-webui-forge/models/text_encoder
+           cd /home/ubuntu/stable-diffusion-webui-forge/models/text_encoder
+           sudo -u ubuntu wget https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/clip_l.safetensors
+           sudo -u ubuntu wget https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/t5xxl_fp8_e4m3fn.safetensors
 
            # Create systemd service
            cat > /etc/systemd/system/sd-webui.service <<EOF
@@ -206,7 +203,7 @@ Resources:
            [Service]
            User=ubuntu
            WorkingDirectory=/home/ubuntu/stable-diffusion-webui-forge
-           ExecStart=/bin/bash -c '/home/ubuntu/stable-diffusion-webui-forge/webui.sh --xformers --listen --enable-insecure-extension-access --gradio-auth ${GradioUsername}:${GradioPassword} --gradio-queue'
+           ExecStart=/bin/bash -c '/home/ubuntu/stable-diffusion-webui-forge/webui.sh --xformers'
            Restart=always
            RestartSec=3
            StandardOutput=sd-webui-log.txt
