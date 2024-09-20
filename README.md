@@ -4,14 +4,17 @@ This CloudFormation template launches a GPU instance using EC2 [Spot Instances](
 
 ## Usage
 
-1. Open the AWS CloudFormation console in **N. Virginia (us-east-1)** region.
+1. Open the AWS CloudFormation console in either the **N. Virginia (us-east-1)** or **Oregon (us-west-2)** region.
 2. Click "Create Stack".
 3. Upload the `sd-webui-stack.yml` template file.
 4. Provide the required parameters:
-  - `Ec2ImageId`: The default AMI ID is for the N. Virginia region. If you need to use a different region, you'll need to find and provide the appropriate AMI ID for that region.
-  - `Ec2InstanceType`: Select the desired instance type with GPU support.
-  - `SubnetAZ`: Choose the Availability Zone for the subnet.
-  - `AccessCidrIp`: CIDR IP range allowed to access the instance.
+  - The AMI ID is automatically selected based on the region. Supported regions are:
+    - us-east-1 (N. Virginia)
+    - us-west-2 (Oregon)
+  - `Ec2InstanceType`: Select the desired instance type with GPU support. Available options are:
+    - g4dn.2xlarge
+    - g5.xlarge
+    - g6.xlarge
 5. Review and create the stack.
 6. After the stack creation is complete, note the `SSMCommandFor[Your OS]` output. Run this command on your local machine to establish a port forwarding session.
 7. In your browser, access the Stable Diffusion Web UI at `WebUIUrl`.
@@ -25,6 +28,8 @@ After the stack creation is complete, the following outputs will be available:
 - `SSMCommandForLinuxAndMacOS`: AWS Systems Manager command to start a port forwarding session from Linux or macOS.
 - `WebUIUrl`: The URL to access the Stable Diffusion Web UI (http://localhost:7860).
 - `InstanceID`: The ID of the EC2 instance.
+
+Note: The SSM commands include the specific instance ID and region, so you can copy and paste them directly into your terminal.
 
 ## Usage Notes
 

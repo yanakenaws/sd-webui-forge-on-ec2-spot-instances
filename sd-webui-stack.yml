@@ -1,253 +1,246 @@
-AWSTemplateFormatVersion: '2010-09-09'
+AWSTemplateFormatVersion: "2010-09-09"
 Description: A CloudFormation template to deploy the Stable Diffusion Web UI Forge by lllyasviel on a Spot Instance
+
+Mappings:
+  RegionMap:
+    us-east-1:
+      AMI: ami-082690718187441d3
+    us-west-2:
+      AMI: ami-05075044f63a733ad
+
 Parameters:
- Ec2ImageId:
-   Type: String
-   Default: ami-082690718187441d3
-   Description: Enter appropriate AMI ID in your region. Tested with "Deep Learning OSS Nvidia Driver AMI GPU TensorFlow 2.16 (Ubuntu 20.04) 20240816" in us-east-1.
- Ec2InstanceType:
-   Type: String
-   Default: g4dn.2xlarge
-   AllowedValues:
-     - g4dn.2xlarge
-     - g5.xlarge
-     - g6.xlarge
- SubnetAZ:
-   Type: String
-   Description: The Availability Zone in which to create the subnet
-   AllowedValues:
-     - us-east-1a
-     - us-east-1b
-     - us-east-1c
-     - us-east-1d
-     - us-east-1f
-   Default: us-east-1a
+  Ec2InstanceType:
+    Type: String
+    Default: g4dn.2xlarge
+    AllowedValues:
+      - g4dn.2xlarge
+      - g5.xlarge
+      - g6.xlarge
 
 Resources:
- MyVPC:
-   Type: AWS::EC2::VPC
-   Properties:
-     CidrBlock: 10.0.0.0/16
-     EnableDnsSupport: true
-     EnableDnsHostnames: true
-     Tags:
-       - Key: Name
-         Value: MyVPC
+  MyVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: MyVPC
 
- MySubnet:
-   Type: AWS::EC2::Subnet
-   Properties:
-     VpcId: !Ref MyVPC
-     CidrBlock: 10.0.1.0/24
-     AvailabilityZone: !Ref SubnetAZ
-     MapPublicIpOnLaunch: true
-     Tags:
-       - Key: Name
-         Value: MySubnet
+  MySubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref MyVPC
+      CidrBlock: 10.0.1.0/24
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: MySubnet
 
- MyInternetGateway:
-   Type: AWS::EC2::InternetGateway
-   Properties:
-     Tags:
-       - Key: Name
-         Value: MyInternetGateway
+  MyInternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: MyInternetGateway
 
- AttachGateway:
-   Type: AWS::EC2::VPCGatewayAttachment
-   Properties:
-     VpcId: !Ref MyVPC
-     InternetGatewayId: !Ref MyInternetGateway
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref MyVPC
+      InternetGatewayId: !Ref MyInternetGateway
 
- MyRouteTable:
-   Type: AWS::EC2::RouteTable
-   Properties:
-     VpcId: !Ref MyVPC
-     Tags:
-       - Key: Name
-         Value: MyRouteTable
+  MyRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref MyVPC
+      Tags:
+        - Key: Name
+          Value: MyRouteTable
 
- MyRoute:
-   Type: AWS::EC2::Route
-   DependsOn: AttachGateway
-   Properties:
-     RouteTableId: !Ref MyRouteTable
-     DestinationCidrBlock: 0.0.0.0/0
-     GatewayId: !Ref MyInternetGateway
+  MyRoute:
+    Type: AWS::EC2::Route
+    DependsOn: AttachGateway
+    Properties:
+      RouteTableId: !Ref MyRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref MyInternetGateway
 
- SubnetRouteTableAssociation:
-   Type: AWS::EC2::SubnetRouteTableAssociation
-   Properties:
-     SubnetId: !Ref MySubnet
-     RouteTableId: !Ref MyRouteTable
+  SubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref MySubnet
+      RouteTableId: !Ref MyRouteTable
 
- SecurityGroup:
-   Type: AWS::EC2::SecurityGroup
-   Properties:
-     GroupName: sd-webui-sg
-     GroupDescription: Security group for SD WebUI EC2 instance
-     VpcId: !Ref MyVPC
-     SecurityGroupEgress:
-       - IpProtocol: -1
-         FromPort: -1
-         ToPort: -1
-         CidrIp: 0.0.0.0/0
+  SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: sd-webui-sg
+      GroupDescription: Security group for SD WebUI EC2 instance
+      VpcId: !Ref MyVPC
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          FromPort: -1
+          ToPort: -1
+          CidrIp: 0.0.0.0/0
 
- IAMRole:
-   Type: AWS::IAM::Role
-   Properties:
-     RoleName: SDWebUISSMRole
-     AssumeRolePolicyDocument:
-       Version: '2012-10-17'
-       Statement:
-         - Effect: Allow
-           Principal:
-             Service:
-               - ec2.amazonaws.com
-           Action:
-             - 'sts:AssumeRole'
-     ManagedPolicyArns:
-       - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
-     Path: /
+  SDWebUISSMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - "sts:AssumeRole"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+      Path: /
 
- IAMInstanceProfile:
-   Type: AWS::IAM::InstanceProfile
-   Properties:
-     Path: /
-     Roles:
-       - !Ref IAMRole
-        
- LaunchTemplate:
-   Type: AWS::EC2::LaunchTemplate
-   Properties:
-     LaunchTemplateData:
-       ImageId: !Ref Ec2ImageId
-       InstanceType: !Ref Ec2InstanceType
-       InstanceMarketOptions:
-         MarketType: spot
-         SpotOptions:
-           SpotInstanceType: persistent
-           InstanceInterruptionBehavior: stop
-       NetworkInterfaces:
-         - DeviceIndex: 0
-           SubnetId: !Ref MySubnet
-           AssociatePublicIpAddress: true
-           Groups:
-             - !Ref SecurityGroup
-       BlockDeviceMappings:
-         - DeviceName: /dev/sda1
-           Ebs:
-             VolumeSize: 200
-             VolumeType: gp3
-             DeleteOnTermination: true
-       IamInstanceProfile:
-         Arn: !GetAtt IAMInstanceProfile.Arn
-       UserData:
-         'Fn::Base64': !Sub |
-           Content-Type: multipart/mixed; boundary="//"
-           MIME-Version: 1.0
+  IAMInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles:
+        - !Ref SDWebUISSMRole
 
-           --//
-           Content-Type: text/cloud-config; charset="us-ascii"
-           MIME-Version: 1.0
-           Content-Transfer-Encoding: 7bit
-           Content-Disposition: attachment; filename="cloud-config.txt"
+  LaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateData:
+        ImageId: !FindInMap [RegionMap, !Ref "AWS::Region", AMI]
+        InstanceType: !Ref Ec2InstanceType
+        InstanceMarketOptions:
+          MarketType: spot
+          SpotOptions:
+            SpotInstanceType: persistent
+            InstanceInterruptionBehavior: stop
+        NetworkInterfaces:
+          - DeviceIndex: 0
+            SubnetId: !Ref MySubnet
+            AssociatePublicIpAddress: true
+            Groups:
+              - !Ref SecurityGroup
+        BlockDeviceMappings:
+          - DeviceName: /dev/sda1
+            Ebs:
+              VolumeSize: 200
+              VolumeType: gp3
+              DeleteOnTermination: true
+        IamInstanceProfile:
+          Arn: !GetAtt IAMInstanceProfile.Arn
+        UserData:
+          "Fn::Base64": !Sub |
+            Content-Type: multipart/mixed; boundary="//"
+            MIME-Version: 1.0
 
-           #cloud-config
-           cloud_final_modules:
-           - [scripts-user, always]
+            --//
+            Content-Type: text/cloud-config; charset="us-ascii"
+            MIME-Version: 1.0
+            Content-Transfer-Encoding: 7bit
+            Content-Disposition: attachment; filename="cloud-config.txt"
 
-           --//
-           Content-Type: text/x-shellscript; charset="us-ascii"
-           MIME-Version: 1.0
-           Content-Transfer-Encoding: 7bit
-           Content-Disposition: attachment; filename="userdata.txt"
+            #cloud-config
+            cloud_final_modules:
+            - [scripts-user, always]
 
-           #!/bin/bash
+            --//
+            Content-Type: text/x-shellscript; charset="us-ascii"
+            MIME-Version: 1.0
+            Content-Transfer-Encoding: 7bit
+            Content-Disposition: attachment; filename="userdata.txt"
 
-           # Disable unattended upgrades
-           sudo apt-get remove unattended-upgrades
+            #!/bin/bash
 
-           # Install packages
-           sudo apt update
-           sudo add-apt-repository ppa:deadsnakes/ppa -y
-           sudo apt -y install wget git 
-           sudo apt -y install python3 python-is-python3 python3-pip python3-venv
-           sudo apt -y install python3.10 python3.10-distutils python3.10-venv python3.10-tk
-           curl -sS https://bootstrap.pypa.io/get-pip.py | python3.10
-           python3.10 -m pip install --upgrade pip
-           sudo update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.10 1
+            # Disable unattended upgrades
+            sudo apt-get remove unattended-upgrades
 
-           # Launch Stable Diffusion Web UI
-           cd /home/ubuntu
-           # setup script uses existing folder if it exists. Feel free to change version here.
-           sudo -u ubuntu git clone https://github.com/lllyasviel/stable-diffusion-webui-forge.git
+            # Install packages
+            sudo apt update
+            sudo add-apt-repository ppa:deadsnakes/ppa -y
+            sudo apt -y install wget git 
+            sudo apt -y install python3 python-is-python3 python3-pip python3-venv
+            sudo apt -y install python3.10 python3.10-distutils python3.10-venv python3.10-tk
+            curl -sS https://bootstrap.pypa.io/get-pip.py | python3.10
+            python3.10 -m pip install --upgrade pip
+            sudo update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.10 1
 
-           # Download FLUX.1 model files
-           cd /home/ubuntu/stable-diffusion-webui-forge/models/Stable-diffusion
-           sudo -u ubuntu wget https://huggingface.co/silveroxides/flux1-nf4-weights/resolve/main/flux1-schnell-bnb-nf4.safetensors
-           
-           cd /home/ubuntu/stable-diffusion-webui-forge/models/VAE
-           sudo -u ubuntu wget https://huggingface.co/black-forest-labs/FLUX.1-schnell/resolve/main/ae.safetensors
-           
-           sudo -u ubuntu mkdir -p /home/ubuntu/stable-diffusion-webui-forge/models/text_encoder
-           cd /home/ubuntu/stable-diffusion-webui-forge/models/text_encoder
-           sudo -u ubuntu wget https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/clip_l.safetensors
-           sudo -u ubuntu wget https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/t5xxl_fp8_e4m3fn.safetensors
+            # Launch Stable Diffusion Web UI
+            cd /home/ubuntu
+            # setup script uses existing folder if it exists. Feel free to change version here.
+            sudo -u ubuntu git clone https://github.com/lllyasviel/stable-diffusion-webui-forge.git
 
-           # Create systemd service
-           cat > /etc/systemd/system/sd-webui.service <<EOF
-           [Unit]
-           Description=SD WebUI Service
-           After=network.target
+            # Download FLUX.1 model files
+            cd /home/ubuntu/stable-diffusion-webui-forge/models/Stable-diffusion
+            sudo -u ubuntu wget https://huggingface.co/silveroxides/flux1-nf4-weights/resolve/main/flux1-schnell-bnb-nf4.safetensors
 
-           [Service]
-           User=ubuntu
-           WorkingDirectory=/home/ubuntu/stable-diffusion-webui-forge
-           ExecStart=/bin/bash -c '/home/ubuntu/stable-diffusion-webui-forge/webui.sh --xformers'
-           Restart=always
-           RestartSec=3
-           StandardOutput=sd-webui-log.txt
-           StandardError=sd-webui-log.txt
-           SyslogIdentifier=sd-webui
+            cd /home/ubuntu/stable-diffusion-webui-forge/models/VAE
+            sudo -u ubuntu wget https://huggingface.co/black-forest-labs/FLUX.1-schnell/resolve/main/ae.safetensors
 
-           [Install]
-           WantedBy=multi-user.target
-           EOF
+            sudo -u ubuntu mkdir -p /home/ubuntu/stable-diffusion-webui-forge/models/text_encoder
+            cd /home/ubuntu/stable-diffusion-webui-forge/models/text_encoder
+            sudo -u ubuntu wget https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/clip_l.safetensors
+            sudo -u ubuntu wget https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/t5xxl_fp8_e4m3fn.safetensors
 
-           # Enable and start the service
-           systemctl enable sd-webui
-           systemctl start sd-webui
-           --//
+            # Create systemd service
+            cat > /etc/systemd/system/sd-webui.service <<EOF
+            [Unit]
+            Description=SD WebUI Service
+            After=network.target
 
- EC2Instance:
-   Type: AWS::EC2::Instance
-   Properties:
-     LaunchTemplate:
-       LaunchTemplateId: !Ref LaunchTemplate
-       Version: !GetAtt LaunchTemplate.LatestVersionNumber
-     Tags:
-       - Key: Name
-         Value: sd-web-ui-cf
+            [Service]
+            User=ubuntu
+            WorkingDirectory=/home/ubuntu/stable-diffusion-webui-forge
+            ExecStart=/bin/bash -c '/home/ubuntu/stable-diffusion-webui-forge/webui.sh --xformers'
+            Restart=always
+            RestartSec=3
+            StandardOutput=sd-webui-log.txt
+            StandardError=sd-webui-log.txt
+            SyslogIdentifier=sd-webui
 
- MyEIP:
-   Type: AWS::EC2::EIP
+            [Install]
+            WantedBy=multi-user.target
+            EOF
 
- MyEIPAssociation:
-   Type: AWS::EC2::EIPAssociation
-   Properties:
-     AllocationId: !GetAtt MyEIP.AllocationId
-     InstanceId: !Ref EC2Instance
+            # Enable and start the service
+            systemctl enable sd-webui
+            systemctl start sd-webui
+            --//
+
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      LaunchTemplate:
+        LaunchTemplateId: !Ref LaunchTemplate
+        Version: !GetAtt LaunchTemplate.LatestVersionNumber
+      Tags:
+        - Key: Name
+          Value: sd-web-ui-cf
+
+  MyEIP:
+    Type: AWS::EC2::EIP
+
+  MyEIPAssociation:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      AllocationId: !GetAtt MyEIP.AllocationId
+      InstanceId: !Ref EC2Instance
 
 Outputs:
- SSMCommandForWindows:
-   Description: AWS SSM Start Session Command
-   Value: !Sub 'aws ssm start-session --target ${EC2Instance.InstanceId} --region ${AWS::Region} --document-name AWS-StartPortForwardingSession --parameters portNumber=7860,localPortNumber=7860'
- SSMCommandForLinuxAndMacOS:
-   Description: AWS SSM Start Session Command
-   Value: !Sub 'aws ssm start-session --target ${EC2Instance.InstanceId} --region ${AWS::Region} --document-name AWS-StartPortForwardingSession --parameters --parameters ''{"portNumber":["7860"], "localPortNumber":["7860"]}'''
- WebUIUrl:
-   Description: URL for the web UI
-   Value: !Sub 'http://localhost:7860'
- InstanceID:
-   Description: EC2Instance ID
-   Value: !Ref EC2Instance
+  SSMCommandForWindows:
+    Description: AWS SSM Start Session Command
+    Value: !Sub "aws ssm start-session --target ${EC2Instance.InstanceId} --region ${AWS::Region} --document-name AWS-StartPortForwardingSession --parameters portNumber=7860,localPortNumber=7860"
+  SSMCommandForLinuxAndMacOS:
+    Description: AWS SSM Start Session Command
+    Value: !Sub 'aws ssm start-session --target ${EC2Instance.InstanceId} --region ${AWS::Region} --document-name AWS-StartPortForwardingSession --parameters --parameters ''{"portNumber":["7860"], "localPortNumber":["7860"]}'''
+  WebUIUrl:
+    Description: URL for the web UI
+    Value: !Sub "http://localhost:7860"
+  InstanceID:
+    Description: EC2Instance ID
+    Value: !Ref EC2Instance
